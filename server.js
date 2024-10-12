@@ -1,49 +1,137 @@
+require('dotenv').config();
+
 const express = require('express');
+const mongoose = require('mongoose');
+const Client = require('./clientModel');
 const app = express();
 
-// Храним количество яблок в переменной
-let appleCount = 10;
+const PORT = process.env.PORT || 3000;
+const dbUrl = process.env.DATABASE_URL;
 
-const mapReq = new Map([
-  ['-122540883', 10],
-  ['33453964', 5],
-  ['-951667864', 7],
-  ['1125609513', 7],
-  ['-951667864', 7],
-  ['-951667864', 7]
-]);
-
-// Middleware для обработки JSON в теле запросов
 app.use(express.json());
 
-// GET запрос для получения количества яблок
-app.get('/fruit', (req, res) => {
-  const name = req.query.name;
-  const count = mapReq.get(name);
-
-  if (count !== undefined) {
-    res.json({ fruit: name, count });
-  } else {
-    res.status(404).json({ error: 'Не найдено' });
-  }
+mongoose.connect(dbUrl, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('Успешное подключение к базе данных');
+}).catch((error) => {
+  console.error('Ошибка подключения к базе данных:', error);
 });
 
-app.post('/fruit', (req, res) => {
-  const { name, count } = req.body;
+mongoose.connection.on('connected', () => {
+  console.log('Подключено к базе данных MongoDB');
+});
+
+function isValidDate(dateString) {
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date);
+}
+
+app.post('/balance', async (req, res) => {
+  const { name, count, pw } = req.body;
+
+  if (pw !== process.env.API_SECRET) {
+    return res.status(401).json({ error: 'Неверный пароль' });
+  }
 
   if (!name || typeof count !== 'number' || count < 0) {
     return res.status(400).json({ error: 'Неверные данные' });
   }
 
-  if(mapReq.has(name)){
-    mapReq.set(name, count);
-  } else {
-    return res.status(400).json({ error: 'Данное имя отсутвует' });
+  try {
+    const client = await Client.findOneAndUpdate(
+      { name: name},
+      { count: count },
+      { new: true, upsert: true }
+    );
+
+    res.json({ client: client.name, count: client.count });
+  } catch (error) {
+    res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
-// Запуск сервера на порту 3000
-const PORT = 3000;
+app.patch('/balance', async (req, res) => {
+  const clientID = req.query.name;
+
+  try {
+    const client = await Client.findOneAndUpdate(
+      { name: clientID },
+      { $inc: { count: -1 } },
+      { new: true}
+    );
+    if (client) {
+      res.json({ count: client.count });
+    } else {
+      res.status(404).json({ error: 'Не найдено' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/balance', async (req, res) => {
+  const clientID = req.query.name;
+
+  try {
+    const client = await Client.findOne({ name: clientID });
+    if (client) {
+      res.json({ count: client.count });
+    } else {
+      res.status(404).json({ error: 'Не найдено' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/date', async (req, res) => {
+  const { name, expDate, pw } = req.body;
+
+  if (pw !== process.env.API_SECRET) {
+    return res.status(401).json({ error: 'Неверный пароль' });
+  }
+
+  if (!name) {
+    return res.status(400).json({ error: 'Неверные данные' });
+  }
+
+  if (!isValidDate(expDate)) {
+    return res.status(400).json({ error: 'Некорректная дата' });
+  }
+
+  try {
+    const client = await Client.findOneAndUpdate(
+      { name: name },
+      { expDate: new Date(expDate) },
+      { new: true, upsert: true }
+    );
+
+    res.json({ client: client.name, count: client.expDate });
+  } catch (error) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/date', async (req, res) => {
+  const clientID = req.query.name;
+  const currentTime = new Date();
+
+  try {
+    const client = await Client.findOne({ name: clientID });
+    if (client) {
+      res.json({ isTimeOut: client.expDate < currentTime });
+    } else {
+      res.status(404).json({ error: 'Пользователь не найден' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+
+
 app.listen(PORT, () => {
   console.log(`Сервер запущен на http://localhost:${PORT}`);
 });
