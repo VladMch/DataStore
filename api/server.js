@@ -28,7 +28,7 @@ function isValidDate(dateString) {
   return date instanceof Date && !isNaN(date);
 }
 
-app.post('/balance', async (req, res) => {
+app.post('/api/balance', async (req, res) => {
   const { name, count, pw } = req.body;
 
   if (pw !== process.env.API_SECRET) {
@@ -52,7 +52,7 @@ app.post('/balance', async (req, res) => {
   }
 });
 
-app.patch('/balance', async (req, res) => {
+app.patch('/api/balance', async (req, res) => {
   const clientID = req.query.name;
 
   try {
@@ -71,7 +71,7 @@ app.patch('/balance', async (req, res) => {
   }
 });
 
-app.get('/balance', async (req, res) => {
+app.get('/api/balance', async (req, res) => {
   const clientID = req.query.name;
 
   try {
@@ -86,7 +86,7 @@ app.get('/balance', async (req, res) => {
   }
 });
 
-app.post('/date', async (req, res) => {
+app.post('/api/date', async (req, res) => {
   const { name, expDate, pw } = req.body;
 
   if (pw !== process.env.API_SECRET) {
@@ -114,7 +114,7 @@ app.post('/date', async (req, res) => {
   }
 });
 
-app.get('/date', async (req, res) => {
+app.get('/api/date', async (req, res) => {
   const clientID = req.query.name;
   const currentTime = new Date();
 
@@ -130,7 +130,7 @@ app.get('/date', async (req, res) => {
   }
 });
 
-
+module.exports = app;
 
 app.listen(PORT, () => {
   console.log(`Сервер запущен на http://localhost:${PORT}`);
