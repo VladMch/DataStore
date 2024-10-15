@@ -3,7 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const Client = require('./clientModel');
+const testRoutes = require('./api/test');
 const app = express();
+
+app.use('/api', testRoutes);
 
 const PORT = process.env.PORT || 3000;
 const dbUrl = process.env.DATABASE_URL;
@@ -135,4 +138,3 @@ module.exports = app;
 app.listen(PORT, () => {
   console.log(`Сервер запущен на http://localhost:${PORT}`);
 });
-
